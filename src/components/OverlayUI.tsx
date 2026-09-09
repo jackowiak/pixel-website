@@ -1,17 +1,22 @@
-import { useRef } from "react";
 import type { CameraStatus } from "../hooks/useCameraStream";
-import type { AudioSource } from "../hooks/useAudioAnalyser";
 
 interface OverlayUIProps {
   cameraStatus: CameraStatus;
   cameraError: string | null;
-  audioSource: AudioSource;
   audioFileName: string | null;
   audioError: string | null;
-  onStartMic: () => void;
-  onFileSelected: (file: File) => void;
+  onSelectTrack: (url: string, label: string) => void;
   onStop: () => void;
 }
+
+const TRACKS: { url: string; label: string }[] = [
+  { url: "/tracks/redhed.m4a", label: "Redhed" },
+  { url: "/tracks/response.m4a", label: "Response" },
+  { url: "/tracks/revolut.m4a", label: "Revolut" },
+  { url: "/tracks/slut.m4a", label: "Slut" },
+  { url: "/tracks/boner2.m4a", label: "Boner 2" },
+  { url: "/tracks/boner2_74bpm.m4a", label: "Boner 2 (74 BPM)" },
+];
 
 const STATUS_CONFIG: Record<CameraStatus, { label: string; dot: string; pulse: boolean }> = {
   idle: { label: "SYSTEM IDLE", dot: "bg-zinc-500", pulse: false },
@@ -23,28 +28,18 @@ const STATUS_CONFIG: Record<CameraStatus, { label: string; dot: string; pulse: b
 export function OverlayUI({
   cameraStatus,
   cameraError,
-  audioSource,
   audioFileName,
   audioError,
-  onStartMic,
-  onFileSelected,
+  onSelectTrack,
   onStop,
 }: OverlayUIProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const { dot, pulse } = STATUS_CONFIG[cameraStatus];
   const label =
-    cameraStatus === "live" && audioSource === "file" && audioFileName
+    cameraStatus === "live" && audioFileName
       ? `PLAYING: ${audioFileName}`
       : STATUS_CONFIG[cameraStatus].label;
   const showPanel = cameraStatus !== "live";
   const isBusy = cameraStatus === "requesting";
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) onFileSelected(file);
-    e.target.value = "";
-  };
 
   return (
     <div className="pointer-events-none fixed inset-0 flex flex-col justify-between p-6 sm:p-8">
@@ -84,7 +79,7 @@ export function OverlayUI({
 
       {/* center panel: camera-viewfinder style, no boxed card */}
       {showPanel && (
-        <div className="pointer-events-auto mx-auto flex flex-col items-center gap-6 self-center">
+        <div className="pointer-events-auto mx-auto flex flex-col items-center gap-4 self-center">
           <div className="relative flex aspect-square w-[min(80vmin,520px)] items-center justify-center">
             {/* reticle corner brackets */}
             <span className="absolute left-0 top-0 h-7 w-7 border-l-2 border-t-2 border-cyan-400/70 sm:h-9 sm:w-9" />
@@ -93,36 +88,29 @@ export function OverlayUI({
             <span className="absolute bottom-0 right-0 h-7 w-7 border-b-2 border-r-2 border-cyan-400/70 sm:h-9 sm:w-9" />
 
             {/* soft vignette behind the text so it reads over the live pixel background */}
-            <div className="absolute h-2/3 w-2/3 rounded-full bg-black/50 blur-2xl" />
+            <div className="absolute h-4/5 w-4/5 rounded-full bg-black/50 blur-2xl" />
 
-            <div className="relative flex flex-col items-center px-6 text-center">
-              <button
-                onClick={onStartMic}
-                disabled={isBusy}
-                className="text-sm font-bold tracking-[0.25em] text-cyan-300 transition-all duration-200 hover:text-cyan-200 hover:drop-shadow-[0_0_14px_rgba(34,211,238,0.6)] disabled:cursor-not-allowed disabled:opacity-50 sm:text-base"
-              >
-                {isBusy ? "[ CONNECTING... ]" : "[ START CAMERA + MIC ]"}
-              </button>
+            <div className="relative flex flex-col items-center gap-3 px-6 text-center">
+              <p className="text-[10px] tracking-[0.3em] text-zinc-500">
+                {isBusy ? "LOADING..." : "SELECT A TRACK"}
+              </p>
+              {TRACKS.map((track) => (
+                <button
+                  key={track.url}
+                  onClick={() => onSelectTrack(track.url, track.label)}
+                  disabled={isBusy}
+                  className="text-xs font-bold tracking-[0.2em] text-cyan-300 transition-all duration-200 hover:text-cyan-200 hover:drop-shadow-[0_0_14px_rgba(34,211,238,0.6)] disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+                >
+                  [ {track.label.toUpperCase()} ]
+                </button>
+              ))}
             </div>
           </div>
 
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isBusy}
-            className="text-[11px] tracking-widest text-zinc-500 underline decoration-dotted decoration-zinc-600 underline-offset-4 transition-colors hover:text-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isBusy ? "loading..." : "or upload an audio file"}
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="audio/*"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-
-          {cameraError && (
-            <p className="max-w-xs text-[11px] tracking-wide text-rose-400">{cameraError}</p>
+          {(cameraError || audioError) && (
+            <p className="max-w-xs text-[11px] tracking-wide text-rose-400">
+              {cameraError ?? audioError}
+            </p>
           )}
         </div>
       )}

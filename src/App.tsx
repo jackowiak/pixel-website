@@ -7,16 +7,11 @@ function App() {
   const audio = useAudioAnalyser();
   const camera = useCameraStream();
 
-  const handleStartMic = () => {
-    void camera.start();
-    void audio.start();
-  };
-
-  const handleFileSelected = (file: File) => {
+  const handleSelectTrack = (url: string, label: string) => {
     if (camera.status !== "live") {
       void camera.start();
     }
-    void audio.startFromFile(file);
+    void audio.startFromUrl(url, label);
   };
 
   const handleStop = () => {
@@ -30,11 +25,9 @@ function App() {
       <OverlayUI
         cameraStatus={camera.status}
         cameraError={camera.errorMessage}
-        audioSource={audio.source}
         audioFileName={audio.fileName}
         audioError={audio.status === "error" ? audio.errorMessage : null}
-        onStartMic={handleStartMic}
-        onFileSelected={handleFileSelected}
+        onSelectTrack={handleSelectTrack}
         onStop={handleStop}
       />
     </div>
