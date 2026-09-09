@@ -4,6 +4,7 @@ import type { VisualPreset } from "./AudioVisualizer";
 interface OverlayUIProps {
   cameraStatus: CameraStatus;
   cameraError: string | null;
+  isPlaying: boolean;
   audioFileName: string | null;
   audioError: string | null;
   onSelectTrack: (url: string, label: string, preset: VisualPreset) => void;
@@ -59,6 +60,7 @@ const STATUS_CONFIG: Record<CameraStatus, { label: string; dot: string; pulse: b
 export function OverlayUI({
   cameraStatus,
   cameraError,
+  isPlaying,
   audioFileName,
   audioError,
   onSelectTrack,
@@ -66,10 +68,8 @@ export function OverlayUI({
 }: OverlayUIProps) {
   const { dot, pulse } = STATUS_CONFIG[cameraStatus];
   const label =
-    cameraStatus === "live" && audioFileName
-      ? `Playing: ${audioFileName}`
-      : STATUS_CONFIG[cameraStatus].label;
-  const showPanel = cameraStatus !== "live";
+    isPlaying && audioFileName ? `Playing: ${audioFileName}` : STATUS_CONFIG[cameraStatus].label;
+  const showPanel = !isPlaying;
   const isBusy = cameraStatus === "requesting";
 
   return (
@@ -90,7 +90,7 @@ export function OverlayUI({
               <span className="max-w-[40vw] truncate normal-case sm:max-w-xs">{label}</span>
             </div>
 
-            {cameraStatus === "live" && (
+            {isPlaying && (
               <button
                 onClick={onStop}
                 className="rounded-full border border-white/15 bg-black/60 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-zinc-200 backdrop-blur-sm transition-colors hover:border-rose-400 hover:text-rose-300"
@@ -100,7 +100,7 @@ export function OverlayUI({
             )}
           </div>
 
-          {cameraStatus === "live" && audioError && (
+          {isPlaying && audioError && (
             <span className="max-w-[70vw] text-right text-[11px] font-semibold text-amber-400/90 sm:max-w-xs">
               {audioError}
             </span>
