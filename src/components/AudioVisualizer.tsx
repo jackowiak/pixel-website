@@ -1,20 +1,37 @@
 import { useEffect, useRef } from "react";
 
+/**
+ * Per-track visual character. Lets each pad give the same audio-reactive
+ * pipeline a distinct feel instead of every track looking identical.
+ */
+export interface VisualPreset {
+  baseCols: number; // grid columns at silence (higher = finer detail)
+  minCols: number; // grid columns at full bass (chunkiest blocks)
+  contrastMul: number; // multiplies how hard treble sharpens color bands
+  brightnessBias: number; // flat offset on the bass brightness boost
+  jitterMul: number; // multiplies fallback-grid glitch displacement
+}
+
+export const DEFAULT_VISUAL_PRESET: VisualPreset = {
+  baseCols: 110,
+  minCols: 16,
+  contrastMul: 1,
+  brightnessBias: 0,
+  jitterMul: 1,
+};
+
 interface AudioVisualizerProps {
   analyserRef: React.RefObject<AnalyserNode | null>;
   videoRef: React.RefObject<HTMLVideoElement | null>;
+  preset?: VisualPreset;
 }
 
 const MAX_DPR = 1.5;
 
-// video-pixelation tuning
-const BASE_COLS = 110; // grid columns at silence (finer detail)
-const MIN_COLS = 16; // grid columns at full bass (chunkiest blocks)
-
 // fallback synthetic grid (used when no camera feed is available)
 const FALLBACK_CELL_SIZE = 26;
 
-const COLOR_BLACK: [number, number, number] = [3, 3, 5];
+const COLOR_BLACK: [number, number, number] = [0, 0, 0];
 const COLOR_BLUE: [number, number, number] = [0, 71, 255];
 const COLOR_RED: [number, number, number] = [255, 26, 26];
 const COLOR_WHITE: [number, number, number] = [245, 245, 245];
@@ -36,8 +53,17 @@ function hash01(x: number, y: number): number {
  * on a tiny offscreen buffer (grid resolution, not screen resolution) —
  * the final upscale to full size is a single GPU-accelerated drawImage.
  */
-export function AudioVisualizer({ analyserRef, videoRef }: AudioVisualizerProps) {
+export function AudioVisualizer({
+  analyserRef,
+  videoRef,
+  preset = DEFAULT_VISUAL_PRESET,
+}: AudioVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const presetRef = useRef(preset);
+
+  useEffect(() => {
+    presetRef.current = preset;
+  }, [preset]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -74,10 +100,8 @@ export function AudioVisualizer({ analyserRef, videoRef }: AudioVisualizerProps)
 
     const renderVideoPixels = (bass: number, treble: number) => {
       const video = videoRef.current!;
-      const cols = Math.max(
-        MIN_COLS,
-        Math.round(BASE_COLS - (BASE_COLS - MIN_COLS) * bass),
-      );
+      const { baseCols, minCols, contrastMul, brightnessBias } = presetRef.current;
+      const cols = Math.max(minCols, Math.round(baseCols - (baseCols - minCols) * bass));
       const rows = Math.max(8, Math.round(cols * (height / width)));
 
       if (smallCanvas.width !== cols || smallCanvas.height !== rows) {
@@ -114,8 +138,8 @@ export function AudioVisualizer({ analyserRef, videoRef }: AudioVisualizerProps)
 
       // treble sharpens the black/blue/red/white split into hard contrast;
       // bass brightens the whole mapping, pushing more of the image toward red/white
-      const contrast = 1 + treble * 2.2;
-      const brightnessBoost = (bass - 0.22) * 150;
+      const contrast = 1 + treble * 2.2 * contrastMul;
+      const brightnessBoost = (bass - 0.22) * 150 + brightnessBias;
       const t1 = 128 - 38 * contrast;
       const t2 = 128 + 42 * contrast;
       const t3 = 128 + 82 * contrast;
@@ -146,7 +170,7 @@ export function AudioVisualizer({ analyserRef, videoRef }: AudioVisualizerProps)
       time: number,
       freqData: Uint8Array<ArrayBuffer> | null,
     ) => {
-      ctx.fillStyle = "#030305";
+      ctx.fillStyle = "#000000";
       ctx.fillRect(0, 0, width, height);
 
       const cellSize = FALLBACK_CELL_SIZE * (1 + bass * 2.2);
@@ -172,8 +196,9 @@ export function AudioVisualizer({ analyserRef, videoRef }: AudioVisualizerProps)
 
           const n1 = hash01(col, row + timeBucket * 0.5);
           const n2 = hash01(col + timeBucket * 0.5, row);
-          const jitterX = (n1 - 0.5) * treble * cellSize * 2.2;
-          const jitterY = (n2 - 0.5) * treble * cellSize * 2.2;
+          const jitterMul = presetRef.current.jitterMul;
+          const jitterX = (n1 - 0.5) * treble * cellSize * 2.2 * jitterMul;
+          const jitterY = (n2 - 0.5) * treble * cellSize * 2.2 * jitterMul;
 
           let color: string;
           if (intensity < 0.35) continue; // background already black, skip draw
