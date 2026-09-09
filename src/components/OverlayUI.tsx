@@ -93,9 +93,21 @@ export function OverlayUI({
             {isPlaying && (
               <button
                 onClick={onStop}
-                className="rounded-full border border-white/15 bg-black/60 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-zinc-200 backdrop-blur-sm transition-colors hover:border-rose-400 hover:text-rose-300"
+                aria-label="Back"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-black/60 text-zinc-200 backdrop-blur-sm transition-colors hover:border-white hover:text-white"
               >
-                Stop
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                >
+                  <path d="M19 12H5" />
+                  <path d="M11 18l-6-6 6-6" />
+                </svg>
               </button>
             )}
           </div>
