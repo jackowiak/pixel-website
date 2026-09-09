@@ -1,32 +1,46 @@
-# React + TypeScript + Vite
+# SLUT SESSION
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Real-time camera pixelation, driven by music. Pick a track from the beat
+tape and your webcam feed gets pixelated live into a black / blue / red /
+white palette, reacting to the track's bass and treble as it plays.
 
-Currently, two official plugins are available:
+## Tech stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** + **TypeScript** — UI and app state
+- **Vite** — dev server and build tooling
+- **Tailwind CSS v4** — styling
+- **Web Audio API** (`AudioContext`, `AnalyserNode`) — decodes and analyses
+  track frequency data (bass/treble energy, with auto-gain normalization
+  so the effect stays lively on quiet tracks too)
+- **MediaDevices getUserMedia** — webcam access
+- **Canvas 2D API** — the pixelation pipeline itself: the video frame is
+  downsampled to a small offscreen canvas, color-quantized per pixel
+  based on the audio-reactive palette thresholds, then upscaled to the
+  full screen with `imageSmoothingEnabled = false` for hard pixel edges
+- **Netlify** — hosting/deploy (`netlify.toml`), auto-deploys on push to `main`
 
-## React Compiler
+No animation, canvas, or audio-visualization libraries — the rendering
+loop, pixelation, and audio analysis are all hand-rolled on top of native
+browser APIs.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Project structure
 
-## Expanding the Oxlint configuration
+- `src/hooks/useCameraStream.ts` — isolates camera `getUserMedia` access
+- `src/hooks/useAudioAnalyser.ts` — isolates Web Audio playback/analysis
+  of a track fetched from `public/tracks/`
+- `src/components/AudioVisualizer.tsx` — the canvas render loop
+  (pixelation + color quantization + per-track `VisualPreset`s)
+- `src/components/OverlayUI.tsx` — the track-pad picker and status UI
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Running locally
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Build
+
+```bash
+npm run build
+```

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AudioVisualizer, DEFAULT_VISUAL_PRESET, type VisualPreset } from "./components/AudioVisualizer";
 import { OverlayUI } from "./components/OverlayUI";
 import { useAudioAnalyser } from "./hooks/useAudioAnalyser";
@@ -9,16 +9,8 @@ function App() {
   const camera = useCameraStream();
   const [visualPreset, setVisualPreset] = useState<VisualPreset>(DEFAULT_VISUAL_PRESET);
 
-  // camera runs ambiently from the moment the page loads, pixelated in the
-  // background, independent of whether a track is playing
-  useEffect(() => {
-    void camera.start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const handleSelectTrack = (url: string, label: string, preset: VisualPreset) => {
-    // retry the camera if the ambient auto-start failed or was never granted
-    if (camera.status === "idle" || camera.status === "error") {
+    if (camera.status !== "live") {
       void camera.start();
     }
     setVisualPreset(preset);
@@ -27,6 +19,7 @@ function App() {
 
   const handleStop = () => {
     audio.stop();
+    camera.stop();
   };
 
   return (

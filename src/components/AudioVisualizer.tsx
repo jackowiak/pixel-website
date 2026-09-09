@@ -183,13 +183,17 @@ export function AudioVisualizer({
           const baseX = col * cellSize;
           const baseY = row * cellSize;
 
-          let binIntensity = 0;
+          let binIntensity: number;
           if (freqData) {
             const binIndex = Math.min(
               freqData.length - 1,
               Math.floor((col / cols) * freqData.length),
             );
             binIntensity = freqData[binIndex] / 255;
+          } else {
+            // no track selected yet: flicker with pseudo-random static
+            // instead of a flat, uniform idle screen
+            binIntensity = hash01(col + timeBucket * 3, row - timeBucket * 3);
           }
 
           const intensity = Math.min(1, binIntensity * 0.75 + treble * 0.55);
