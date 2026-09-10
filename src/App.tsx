@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { AudioVisualizer, DEFAULT_VISUAL_PRESET, type VisualPreset } from "./components/AudioVisualizer";
+import { useEffect, useRef } from "react";
+import { AudioVisualizer } from "./components/AudioVisualizer";
 import { OverlayUI } from "./components/OverlayUI";
 import { useAudioAnalyser } from "./hooks/useAudioAnalyser";
 import { useCameraStream } from "./hooks/useCameraStream";
@@ -10,7 +10,6 @@ function App() {
   const audio = useAudioAnalyser();
   const camera = useCameraStream();
   const { remoteTrackId, remotePreset, publishTrackSelection } = useRemoteControl();
-  const [visualPreset, setVisualPreset] = useState<VisualPreset>(DEFAULT_VISUAL_PRESET);
 
   // tracks what's actually loaded right now, regardless of whether the
   // pick came from a local pad click or a remote pilot update — used to
@@ -22,7 +21,6 @@ function App() {
     if (camera.status !== "live") {
       void camera.start();
     }
-    setVisualPreset(track.preset);
     void audio.startFromUrl(track.url, track.label);
     publishTrackSelection(track);
   };
@@ -50,13 +48,9 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteTrackId]);
 
-  // once a track is live, the pilot's slider tweaks (mirrored through
-  // Firebase) take priority over the track's baked-in defaults
-  const appliedPreset = remotePreset ?? visualPreset;
-
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black">
-      <AudioVisualizer analyserRef={audio.analyserRef} videoRef={camera.videoRef} preset={appliedPreset} />
+      <AudioVisualizer analyserRef={audio.analyserRef} videoRef={camera.videoRef} preset={remotePreset} />
       <OverlayUI
         cameraStatus={camera.status}
         cameraError={camera.errorMessage}

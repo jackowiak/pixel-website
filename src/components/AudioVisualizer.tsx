@@ -98,10 +98,13 @@ export function AudioVisualizer({
     resize();
     window.addEventListener("resize", resize);
 
-    const renderVideoPixels = (bass: number, treble: number) => {
+    const renderVideoPixels = (bass: number, treble: number, time: number) => {
       const video = videoRef.current!;
-      const { baseCols, minCols, contrastMul, brightnessBias } = presetRef.current;
-      const cols = Math.max(minCols, Math.round(baseCols - (baseCols - minCols) * bass));
+      const { baseCols, minCols, contrastMul, brightnessBias, jitterMul } = presetRef.current;
+      // minCols always pulls at least partway toward the chunky end, so the
+      // slider is visibly effective even when bass is quiet, not just at peaks
+      const bassPull = 0.35 + 0.65 * bass;
+      const cols = Math.max(4, Math.round(baseCols - (baseCols - minCols) * bassPull));
       const rows = Math.max(8, Math.round(cols * (height / width)));
 
       if (smallCanvas.width !== cols || smallCanvas.height !== rows) {
@@ -136,9 +139,10 @@ export function AudioVisualizer({
       const imgData = smallCtx.getImageData(0, 0, cols, rows);
       const data = imgData.data;
 
-      // treble sharpens the black/blue/red/white split into hard contrast;
+      // contrastMul scales the band spread directly (visible even in
+      // silence), treble adds extra sharpening on top of that baseline;
       // bass brightens the whole mapping, pushing more of the image toward red/white
-      const contrast = 1 + treble * 2.2 * contrastMul;
+      const contrast = contrastMul * (1 + treble * 2.5);
       const brightnessBoost = (bass - 0.22) * 150 + brightnessBias;
       const t1 = 128 - 38 * contrast;
       const t2 = 128 + 42 * contrast;
@@ -156,6 +160,33 @@ export function AudioVisualizer({
         data[i] = color[0];
         data[i + 1] = color[1];
         data[i + 2] = color[2];
+      }
+
+      // glitch: on a coarse time-step (not every frame), slice a handful of
+      // rows and roll them horizontally — jitterMul + treble control both
+      // how many rows glitch and how far they shift
+      const timeBucket = Math.floor(time * 4);
+      const glitchAmount = jitterMul * (0.2 + treble * 1.2);
+      if (glitchAmount > 0.05 && cols > 1) {
+        const rowBytes = cols * 4;
+        const rowsToGlitch = Math.min(rows, Math.ceil(rows * Math.min(1, glitchAmount * 0.4)));
+        for (let g = 0; g < rowsToGlitch; g++) {
+          const row = Math.floor(hash01(g * 3.1, timeBucket) * rows);
+          const shift = Math.round((hash01(row, timeBucket + g * 1.7) - 0.5) * cols * Math.min(1.5, glitchAmount));
+          if (shift === 0) continue;
+
+          const start = row * rowBytes;
+          const rowCopy = data.slice(start, start + rowBytes);
+          for (let x = 0; x < cols; x++) {
+            const srcX = ((x - shift) % cols + cols) % cols;
+            const d = start + x * 4;
+            const s = srcX * 4;
+            data[d] = rowCopy[s];
+            data[d + 1] = rowCopy[s + 1];
+            data[d + 2] = rowCopy[s + 2];
+            data[d + 3] = rowCopy[s + 3];
+          }
+        }
       }
 
       smallCtx.putImageData(imgData, 0, 0);
@@ -265,7 +296,7 @@ export function AudioVisualizer({
       const hasVideo = !!video && video.readyState >= 2 && video.videoWidth > 0;
 
       if (hasVideo) {
-        renderVideoPixels(smoothedBass, smoothedTreble);
+        renderVideoPixels(smoothedBass, smoothedTreble, time);
       } else {
         renderFallbackGrid(smoothedBass, smoothedTreble, time, freqData);
       }
